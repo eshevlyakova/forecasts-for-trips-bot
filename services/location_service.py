@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_URL = 'http://dataservice.accuweather.com/'
-WEATHER_API_KEY = 'hcim65SyN9VGqzB0ULKzGBEwR5B0e8rE'
+WEATHER_API_KEY = 'BsX4Whj7FiOoB5VAZqqH3jkkgFA3MuAj'
 
 async def fetch_location_data(city_name, session):
     url = f"{BASE_URL}locations/v1/cities/search"
@@ -48,3 +48,20 @@ async def fetch_weather_data(location_key, days, session):
         )
 
     return "\n".join(result)
+
+async def get_city_by_coordinates(latitude, longitude, session):
+    url = f"{BASE_URL}locations/v1/cities/geoposition/search"
+    params = {'apikey': WEATHER_API_KEY, 'q': f"{latitude},{longitude}"}
+    async with session.get(url, params=params) as response:
+        response.raise_for_status()
+        data = await response.json()
+
+    if not data:
+        raise ValueError("Не удалось определить город по текущей геолокации.")
+
+    if 'ParentCity' in data and 'LocalizedName' in data['ParentCity']:
+        city_name = data['ParentCity']['LocalizedName']
+    else:
+        city_name = data.get('LocalizedName', 'Неизвестный город')
+
+    return city_name

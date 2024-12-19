@@ -1,43 +1,95 @@
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, Location, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
 from services.weather_service import get_weather_report
 from models.states import WeatherForm
 from handlers.utils import get_yes_no_keyboard, get_interval_inline_keyboard
+from services.location_service import get_city_by_coordinates
+import aiohttp
 
 router = Router()
 
 def contains_digit(s: str) -> bool:
     return any(char.isdigit() for char in s)
 
+def get_location_or_text_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Отправить геолокацию", request_location=True)],
+            [KeyboardButton(text="Ввести текст")]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
 @router.message(Command("weather"))
 async def weather_command(message: Message, state: FSMContext):
     await state.set_state(WeatherForm.waiting_for_start)
-    await message.answer('Введите начальную точку маршрута:')
+    await message.answer(
+        'Введите начальную точку маршрута или отправьте геолокацию:',
+        reply_markup=get_location_or_text_keyboard()
+    )
 
 @router.message(WeatherForm.waiting_for_start)
 async def process_start(message: Message, state: FSMContext):
-    start_point = message.text
-    if contains_digit(start_point):
-        await message.answer('Название города не должно содержать цифр. Пожалуйста, введите корректное название начальной точки маршрута:')
-        return
-    await state.update_data(start=start_point)
-    await state.set_state(WeatherForm.waiting_for_end)
-    await message.answer('Введите конечную точку маршрута:')
+    if message.location:
+        location: Location = message.location
+        latitude = location.latitude
+        longitude = location.longitude
+
+        async with aiohttp.ClientSession() as session:
+            try:
+                city_name = await get_city_by_coordinates(latitude, longitude, session)
+                await state.update_data(start=city_name)
+                await state.set_state(WeatherForm.waiting_for_end)
+                await message.answer(
+                    f"Начальная точка маршрута установлена: {city_name}\nТеперь введите конечную точку маршрута или отправьте геолокацию:",
+                    reply_markup=get_location_or_text_keyboard()
+                )
+            except ValueError as e:
+                await message.answer(str(e))
+    elif message.text:
+        start_point = message.text
+        if contains_digit(start_point):
+            await message.answer('Название города не должно содержать цифр. Пожалуйста, введите корректное название начальной точки маршрута:')
+            return
+        await state.update_data(start=start_point)
+        await state.set_state(WeatherForm.waiting_for_end)
+        await message.answer(
+            'Введите конечную точку маршрута или отправьте геолокацию:',
+            reply_markup=get_location_or_text_keyboard()
+        )
 
 @router.message(WeatherForm.waiting_for_end)
 async def process_end(message: Message, state: FSMContext):
-    end_point = message.text
-    if contains_digit(end_point):
-        await message.answer('Название города не должно содержать цифр. Пожалуйста, введите корректное название конечной точки маршрута:')
-        return
-    await state.update_data(end=end_point)
-    await state.set_state(WeatherForm.waiting_for_intermediate)
-    await message.answer(
-        'Есть ли промежуточные остановки на маршруте?',
-        reply_markup=get_yes_no_keyboard(),
-    )
+    if message.location:
+        location: Location = message.location
+        latitude = location.latitude
+        longitude = location.longitude
+
+        async with aiohttp.ClientSession() as session:
+            try:
+                city_name = await get_city_by_coordinates(latitude, longitude, session)
+                await state.update_data(end=city_name)
+                await state.set_state(WeatherForm.waiting_for_intermediate)
+                await message.answer(
+                    f"Конечная точка маршрута установлена: {city_name}\nЕсть ли промежуточные остановки на маршруте?",
+                    reply_markup=get_yes_no_keyboard()
+                )
+            except ValueError as e:
+                await message.answer(str(e))
+    elif message.text:
+        end_point = message.text
+        if contains_digit(end_point):
+            await message.answer('Название города не должно содержать цифр. Пожалуйста, введите корректное название конечной точки маршрута:')
+            return
+        await state.update_data(end=end_point)
+        await state.set_state(WeatherForm.waiting_for_intermediate)
+        await message.answer(
+            'Есть ли промежуточные остановки на маршруте?',
+            reply_markup=get_yes_no_keyboard()
+        )
 
 @router.message(WeatherForm.waiting_for_intermediate, F.text.in_({"Да", "Нет"}))
 async def process_intermediate(message: Message, state: FSMContext):
