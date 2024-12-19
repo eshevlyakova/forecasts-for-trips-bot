@@ -26,12 +26,9 @@ Weather Forecasts — это Telegram-бот для получения прог�
 
     ```env
     BOT_TOKEN=your_telegram_bot_token
-    WEATHER_API_KEY=your_weather_api_key
     ```
 
     - **BOT_TOKEN** — это токен вашего бота в Telegram. Его можно получить через BotFather в Telegram.
-    - **WEATHER_API_KEY** — это ключ API для прогноза погоды, который можно получить, зарегистрировавшись на [AccuWeather API](https://developer.accuweather.com/).
-
 4. Запустите бота:
 
     ```bash

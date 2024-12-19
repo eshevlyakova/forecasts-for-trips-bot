@@ -1,10 +1,9 @@
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
 BASE_URL = 'http://dataservice.accuweather.com/'
-WEATHER_API_KEY = os.getenv('WEATHER_API_KEY')
+WEATHER_API_KEY = 'hcim65SyN9VGqzB0ULKzGBEwR5B0e8rE'
 
 async def fetch_location_data(city_name, session):
     url = f"{BASE_URL}locations/v1/cities/search"

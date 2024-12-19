@@ -11,7 +11,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 API_TOKEN = os.getenv('BOT_TOKEN')
-WEATHER_API_KEY = os.getenv('WEATHER_API_KEY')
+WEATHER_API_KEY = 'hcim65SyN9VGqzB0ULKzGBEwR5B0e8rE'
 
 if not API_TOKEN:
     raise ValueError("Токен бота не найден. Убедитесь, что он указан в файле .env")
